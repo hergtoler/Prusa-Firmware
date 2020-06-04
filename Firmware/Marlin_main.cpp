@@ -3075,7 +3075,7 @@ static T gcode_M600_filament_change_z_shift()
 #endif
 }	
 
-static void gcode_M600(bool automatic, float x_position, float y_position, float z_shift, float e_shift, float /*e_shift_late*/)
+static void gcode_M600(bool negative, bool automatic, float x_position, float y_position, float z_shift, float e_shift, float /*e_shift_late*/)
 {
     st_synchronize();
     float lastpos[4];
@@ -3116,48 +3116,51 @@ static void gcode_M600(bool automatic, float x_position, float y_position, float
 
     lcd_change_fil_state = 0;
 
-    // Unload filament
-    if (mmu_enabled) extr_unload();	//unload just current filament for multimaterial printers (used also in M702)
-    else unload_filament(); //unload filament for single material (used also in M702)
-    //finish moves
-    st_synchronize();
+    if(!negative)
+	{
+		// Unload filament
+		if (mmu_enabled) extr_unload();	//unload just current filament for multimaterial printers (used also in M702)
+		else unload_filament(); //unload filament for single material (used also in M702)
+		//finish moves
+		st_synchronize();
 
-    if (!mmu_enabled)
-    {
-        KEEPALIVE_STATE(PAUSED_FOR_USER);
-        lcd_change_fil_state = lcd_show_fullscreen_message_yes_no_and_wait_P(_i("Was filament unload successful?"),
-                false, true); ////MSG_UNLOAD_SUCCESSFUL c=20 r=2
-        if (lcd_change_fil_state == 0)
-        {
-			lcd_clear();
-			lcd_set_cursor(0, 2);
-			lcd_puts_P(_T(MSG_PLEASE_WAIT));
-			current_position[X_AXIS] -= 100;
-			plan_buffer_line_curposXYZE(FILAMENTCHANGE_XYFEED, active_extruder);
-			st_synchronize();
-			lcd_show_fullscreen_message_and_wait_P(_i("Please open idler and remove filament manually."));////MSG_CHECK_IDLER c=20 r=4
-        }
-    }
+		if (!mmu_enabled)
+		{
+			KEEPALIVE_STATE(PAUSED_FOR_USER);
+			lcd_change_fil_state = lcd_show_fullscreen_message_yes_no_and_wait_P(_i("Was filament unload successful?"),
+					false, true); ////MSG_UNLOAD_SUCCESSFUL c=20 r=2
+			if (lcd_change_fil_state == 0)
+			{
+				lcd_clear();
+				lcd_set_cursor(0, 2);
+				lcd_puts_P(_T(MSG_PLEASE_WAIT));
+				current_position[X_AXIS] -= 100;
+				plan_buffer_line_curposXYZE(FILAMENTCHANGE_XYFEED, active_extruder);
+				st_synchronize();
+				lcd_show_fullscreen_message_and_wait_P(_i("Please open idler and remove filament manually."));////MSG_CHECK_IDLER c=20 r=4
+			}
+		}
 
-    if (mmu_enabled)
-    {
-        if (!automatic) {
-            if (saved_printing) mmu_eject_filament(mmu_extruder, false); //if M600 was invoked by filament senzor (FINDA) eject filament so user can easily remove it
-            mmu_M600_wait_and_beep();
-            if (saved_printing) {
+		if (mmu_enabled)
+		{
+			if (!automatic) {
+				if (saved_printing) mmu_eject_filament(mmu_extruder, false); //if M600 was invoked by filament senzor (FINDA) eject filament so user can easily remove it
+				mmu_M600_wait_and_beep();
+				if (saved_printing) {
 
-                lcd_clear();
-                lcd_set_cursor(0, 2);
-                lcd_puts_P(_T(MSG_PLEASE_WAIT));
+					lcd_clear();
+					lcd_set_cursor(0, 2);
+					lcd_puts_P(_T(MSG_PLEASE_WAIT));
 
-                mmu_command(MmuCmd::R0);
-                manage_response(false, false);
-            }
-        }
-        mmu_M600_load_filament(automatic, HotendTempBckp);
-    }
-    else
-        M600_load_filament();
+					mmu_command(MmuCmd::R0);
+					manage_response(false, false);
+				}
+			}
+			mmu_M600_load_filament(automatic, HotendTempBckp);
+		}
+		else
+			M600_load_filament();
+	}
 
     if (!automatic) M600_check_state(HotendTempBckp);
 
@@ -7808,13 +7811,14 @@ Sigma_Exit:
 	If the `M600` is triggered under 25mm it will do a Z-lift of 25mm to prevent a filament blob.
     #### Usage
     
-        M600 [ X | Y | Z | E | L | AUTO ]
+        M600 [ X | Y | Z | E | L | N | AUTO ]
       
     - `X`    - X position, default 211
     - `Y`    - Y position, default 0
     - `Z`    - relative lift Z, default 2.
     - `E`    - initial retract, default -2
     - `L`    - later retract distance for removal, default -80
+	- `N`    - negative, just pause and move, don't change filament
     - `AUTO` - Automatically (only with MMU)
     */
     case 600: //Pause for filament change X[pos] Y[pos] Z[relative lift] E[initial retract] L[later retract distance for removal]
@@ -7827,6 +7831,7 @@ Sigma_Exit:
 		float e_shift_init = 0;
 		float e_shift_late = 0;
 		bool automatic = false;
+		bool negative = false;
 		
         //Retract extruder
         if(code_seen('E'))
@@ -7886,7 +7891,10 @@ Sigma_Exit:
 		if (mmu_enabled && code_seen("AUTO"))
 			automatic = true;
 
-		gcode_M600(automatic, x_position, y_position, z_shift, e_shift_init, e_shift_late);
+		if (code_seen('N'))
+			negative = true;
+
+		gcode_M600(negative, automatic, x_position, y_position, z_shift, e_shift_init, e_shift_late);
 	
 	}
     break;
