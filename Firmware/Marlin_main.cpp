@@ -7894,7 +7894,9 @@ Sigma_Exit:
 		if (code_seen('N'))
 			negative = true;
 
-		gcode_M600(negative, automatic, x_position, y_position, z_shift, e_shift_init, e_shift_late);
+		SERIAL_PROTOCOLLNPGM("Filament change - M600");
+
+    gcode_M600(negative, automatic, x_position, y_position, z_shift, e_shift_init, e_shift_late);
 	
 	}
     break;
@@ -8424,6 +8426,18 @@ Sigma_Exit:
     break;
 
 #endif //TMC2130_SERVICE_CODES_M910_M918
+
+#ifdef TMC2130
+    /*!
+	### M919 - Get silent mode status <a href="https://reprap.org/wiki/G-code#M919:_Report_silent_mode_status">M919: Report silent mode status</a>
+	
+    */
+	case 919:
+    {
+		printf_P(_N("SILENT MODE: %S\n"), (tmc2130_mode==TMC2130_MODE_SILENT)?_N("ENABLED"):_N("DISABLED"));
+    }
+    break;
+#endif //TMC2130
 
     /*!
 	### M350 - Set microstepping mode <a href="https://reprap.org/wiki/G-code#M350:_Set_microstepping_mode">M350: Set microstepping mode</a>
