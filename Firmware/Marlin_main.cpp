@@ -7822,7 +7822,7 @@ Sigma_Exit:
     - `Z`    - relative lift Z, default 2.
     - `E`    - initial retract, default -2
     - `L`    - later retract distance for removal, default -80
-	- `N`    - negative, just pause and move, don't change filament
+    - `N`    - negative, just pause and move, don't change filament
     - `AUTO` - Automatically (only with MMU)
     */
     case 600: //Pause for filament change X[pos] Y[pos] Z[relative lift] E[initial retract] L[later retract distance for removal]
