@@ -3117,48 +3117,48 @@ static void gcode_M600(bool negative, bool automatic, float x_position, float y_
 
     if(!negative && !mmu_enabled)
     {
-        // Unload filament
-        if (mmu_enabled) extr_unload(); //unload just current filament for multimaterial printers (used also in M702)
-        else unload_filament(); //unload filament for single material (used also in M702)
-        //finish moves
-        st_synchronize();
-    
-        if (!mmu_enabled)
+    // Unload filament
+    if (mmu_enabled) extr_unload();	//unload just current filament for multimaterial printers (used also in M702)
+    else unload_filament(); //unload filament for single material (used also in M702)
+    //finish moves
+    st_synchronize();
+
+    if (!mmu_enabled)
+    {
+        KEEPALIVE_STATE(PAUSED_FOR_USER);
+        lcd_change_fil_state = lcd_show_fullscreen_message_yes_no_and_wait_P(_i("Was filament unload successful?"),
+                false, true); ////MSG_UNLOAD_SUCCESSFUL c=20 r=2
+        if (lcd_change_fil_state == 0)
         {
-            KEEPALIVE_STATE(PAUSED_FOR_USER);
-            lcd_change_fil_state = lcd_show_fullscreen_message_yes_no_and_wait_P(_i("Was filament unload successful?"),
-                    false, true); ////MSG_UNLOAD_SUCCESSFUL c=20 r=2
-            if (lcd_change_fil_state == 0)
-            {
+			lcd_clear();
+			lcd_set_cursor(0, 2);
+			lcd_puts_P(_T(MSG_PLEASE_WAIT));
+			current_position[X_AXIS] -= 100;
+			plan_buffer_line_curposXYZE(FILAMENTCHANGE_XYFEED, active_extruder);
+			st_synchronize();
+			lcd_show_fullscreen_message_and_wait_P(_i("Please open idler and remove filament manually."));////MSG_CHECK_IDLER c=20 r=4
+        }
+    }
+
+    if (mmu_enabled)
+    {
+        if (!automatic) {
+            if (saved_printing) mmu_eject_filament(mmu_extruder, false); //if M600 was invoked by filament senzor (FINDA) eject filament so user can easily remove it
+            mmu_M600_wait_and_beep();
+            if (saved_printing) {
+
                 lcd_clear();
                 lcd_set_cursor(0, 2);
                 lcd_puts_P(_T(MSG_PLEASE_WAIT));
-                current_position[X_AXIS] -= 100;
-                plan_buffer_line_curposXYZE(FILAMENTCHANGE_XYFEED, active_extruder);
-                st_synchronize();
-                lcd_show_fullscreen_message_and_wait_P(_i("Please open idler and remove filament manually."));////MSG_CHECK_IDLER c=20 r=4
+
+                mmu_command(MmuCmd::R0);
+                manage_response(false, false);
             }
         }
-    
-        if (mmu_enabled)
-        {
-            if (!automatic) {
-                if (saved_printing) mmu_eject_filament(mmu_extruder, false); //if M600 was invoked by filament senzor (FINDA) eject filament so user can easily remove it
-                mmu_M600_wait_and_beep();
-                if (saved_printing) {
-    
-                    lcd_clear();
-                    lcd_set_cursor(0, 2);
-                    lcd_puts_P(_T(MSG_PLEASE_WAIT));
-    
-                    mmu_command(MmuCmd::R0);
-                    manage_response(false, false);
-                }
-            }
-            mmu_M600_load_filament(automatic, HotendTempBckp);
-        }
-        else
-            M600_load_filament();
+        mmu_M600_load_filament(automatic, HotendTempBckp);
+    }
+    else
+        M600_load_filament();
     }
 
     if (!automatic) M600_check_state(HotendTempBckp);
