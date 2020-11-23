@@ -3193,7 +3193,7 @@ static T gcode_M600_filament_change_z_shift()
 #endif
 }	
 
-static void gcode_M600(bool automatic, float x_position, float y_position, float z_shift, float e_shift, float /*e_shift_late*/)
+static void gcode_M600(bool negative, bool automatic, float x_position, float y_position, float z_shift, float e_shift, float /*e_shift_late*/)
 {
     st_synchronize();
     float lastpos[4];
@@ -3234,6 +3234,8 @@ static void gcode_M600(bool automatic, float x_position, float y_position, float
 
     lcd_change_fil_state = 0;
 
+    if(!negative && !mmu_enabled)
+    {
     // Unload filament
     if (mmu_enabled) extr_unload();	//unload just current filament for multimaterial printers (used also in M702)
     else unload_filament(); //unload filament for single material (used also in M702)
@@ -3276,6 +3278,7 @@ static void gcode_M600(bool automatic, float x_position, float y_position, float
     }
     else
         M600_load_filament();
+    }
 
     if (!automatic) M600_check_state(HotendTempBckp);
 
@@ -7896,13 +7899,14 @@ Sigma_Exit:
 	If the `M600` is triggered under 25mm it will do a Z-lift of 25mm to prevent a filament blob.
     #### Usage
     
-        M600 [ X | Y | Z | E | L | AUTO ]
+        M600 [ X | Y | Z | E | L | N | AUTO ]
       
     - `X`    - X position, default 211
     - `Y`    - Y position, default 0
     - `Z`    - relative lift Z, default 2.
     - `E`    - initial retract, default -2
     - `L`    - later retract distance for removal, default -80
+    - `N`    - negative, just pause and move, don't change filament
     - `AUTO` - Automatically (only with MMU)
     */
     case 600: //Pause for filament change X[pos] Y[pos] Z[relative lift] E[initial retract] L[later retract distance for removal]
@@ -7915,6 +7919,7 @@ Sigma_Exit:
 		float e_shift_init = 0;
 		float e_shift_late = 0;
 		bool automatic = false;
+		bool negative = false;
 		
         //Retract extruder
         if(code_seen('E'))
@@ -7974,7 +7979,10 @@ Sigma_Exit:
 		if (mmu_enabled && code_seen("AUTO"))
 			automatic = true;
 
-		gcode_M600(automatic, x_position, y_position, z_shift, e_shift_init, e_shift_late);
+		if (code_seen('N'))
+			negative = true;
+
+		gcode_M600(negative, automatic, x_position, y_position, z_shift, e_shift_init, e_shift_late);
 	
 	}
     break;
